@@ -170,6 +170,103 @@ def _parse_slash(a: int, b: int, y: int, source: str) -> Optional[DateInterval]:
     return None
 
 
+def find_dates(text: str) -> List[DateInterval]:
+    """Every date written in the text, in left-to-right order.
+
+    Longer forms win over a date inside them: "October 1997, day 28"
+    is one day, not the month of October 1997.
+    """
+    if not text:
+        return []
+    specs = [
+        (
+            re.compile(
+                r"\b([A-Za-z]+)\s+((?:19|20)\d{2}),?\s+day\s+(\d{1,2})\b",
+                re.I,
+            ),
+            "month_year_day",
+        ),
+        (
+            re.compile(
+                r"\b(\d{1,2})(?:st|nd|rd|th)?\s+of\s+([A-Za-z]+),?\s+((?:19|20)\d{2})\b",
+                re.I,
+            ),
+            "day_of_month",
+        ),
+        (
+            re.compile(
+                r"\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+),?\s+((?:19|20)\d{2})\b",
+                re.I,
+            ),
+            "day_month",
+        ),
+        (
+            re.compile(
+                r"\b([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+((?:19|20)\d{2})\b",
+                re.I,
+            ),
+            "month_day",
+        ),
+        (re.compile(r"\b(\d{4}-\d{2}-\d{2})\b"), "raw"),
+        (re.compile(r"\b(\d{1,2}/\d{1,2}/\d{4})\b"), "raw"),
+        (
+            re.compile(r"\b([A-Za-z]+)\s+((?:19|20)\d{2})\b", re.I),
+            "month_year",
+        ),
+    ]
+    spans: List[tuple] = []
+    for cre, kind in specs:
+        for match in cre.finditer(text):
+            if any(not (match.end() <= start or match.start() >= end) for start, end, _ in spans):
+                continue
+            interval = _interval_from_date_match(kind, match)
+            if interval is not None:
+                spans.append((match.start(), match.end(), interval))
+    spans.sort(key=lambda item: item[0])
+    return [interval for _, _, interval in spans]
+
+
+def _interval_from_date_match(kind: str, match: re.Match) -> Optional[DateInterval]:
+    if kind == "raw":
+        return parse_date(match.group(0))
+    if kind == "month_year_day":
+        month = MONTHS.get(match.group(1).lower())
+        year = int(match.group(2))
+        day = int(match.group(3))
+        if month and _valid_ymd(year, month, day):
+            return day_interval(year, month, day)
+        return None
+    if kind == "day_of_month" or kind == "day_month":
+        day = int(match.group(1))
+        month = MONTHS.get(match.group(2).lower())
+        year = int(match.group(3))
+        if month and _valid_ymd(year, month, day):
+            return day_interval(year, month, day)
+        return None
+    if kind == "month_day":
+        month = MONTHS.get(match.group(1).lower())
+        day = int(match.group(2))
+        year = int(match.group(3))
+        if month and _valid_ymd(year, month, day):
+            return day_interval(year, month, day)
+        return None
+    if kind == "month_year":
+        month = MONTHS.get(match.group(1).lower())
+        year = int(match.group(2))
+        if month:
+            return month_interval(year, month)
+    return None
+
+
+def same_calendar_day(left: DateInterval, right: DateInterval) -> bool:
+    """True when both intervals are the same precise day."""
+    return (
+        precise_day(left) is not None
+        and precise_day(right) is not None
+        and (left.y_lo, left.m_lo, left.d_lo) == (right.y_lo, right.m_lo, right.d_lo)
+    )
+
+
 def age_at_date_years(age: int, event_year: int, event_month: Optional[int] = None) -> List[int]:
     """Aged N at a date → two possible birth years (P5: aged 45 in March 2019 → 1973 or 1974)."""
     del event_month  # month does not change the two-year span the policy states

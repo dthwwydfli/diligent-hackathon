@@ -81,6 +81,13 @@ def test_company_legal_forms_only_for_companies() -> None:
     )
 
 
+def test_hyphen_and_apostrophe_split_and_joined() -> None:
+    """P8: punctuation is ignored, and a hyphenated part matches either piece or the join."""
+    assert names_agree("Markus Müller", "Markus A. Müller-Kägi")
+    assert names_agree("Abdul Salam", "Abdul-Salam Hassan")
+    assert tokenize_name("Müller-Kägi") == ["muller", "kagi", "mullerkagi"]
+
+
 def test_under_two_parts_cannot_clear_or_confirm() -> None:
     """P8: individual with fewer than 2 real parts can be neither confirmed nor cleared on name."""
     assert not can_use_name_for_clear_or_confirm(tokenize_name("Madonna"))

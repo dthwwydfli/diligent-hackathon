@@ -139,6 +139,9 @@ def check_location(person: Person, hit: HitFacts) -> CheckResult:
 
 def check_name_mismatch(person: Person, hit: HitFacts, store: DataStore) -> CheckResult:
     """Verified legal name agrees with none of the hit's names. Needs approved check."""
+    if person.identity_unknown:
+        # Unread newer KYC note: name is not known, so it cannot clear.
+        return CheckResult("NAME_MISMATCH_VERIFIED", "UNKNOWN")
     if not person.has_approved_check or not person.verified_name:
         return CheckResult("NAME_MISMATCH_VERIFIED", "FALSE")
     variants = build_variant_map(store.name_variants.get("groups") or [])
@@ -167,6 +170,9 @@ def check_name_mismatch(person: Person, hit: HitFacts, store: DataStore) -> Chec
 
 def name_agrees(person: Person, hit: HitFacts, store: DataStore) -> Optional[bool]:
     """I3: verified name if present; else full/preferred + screened. None = cannot decide."""
+    if person.identity_unknown:
+        # Do not fall back to the declared or screened name.
+        return None
     variants = build_variant_map(store.name_variants.get("groups") or [])
     forms = list(store.name_variants.get("company_legal_forms") or [])
     is_co = _is_company(person.entity_type)

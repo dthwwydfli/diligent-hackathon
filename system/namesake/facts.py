@@ -43,6 +43,8 @@ class Person:
     verified_doc_country: Optional[str] = None
     verified_source: Optional[str] = None
     has_approved_check: bool = False
+    # Newer KYC note we could not read: do not use declared name or DOB.
+    identity_unknown: bool = False
     evidence_ids: List[str] = field(default_factory=list)
 
     @property

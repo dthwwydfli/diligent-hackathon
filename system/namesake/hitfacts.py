@@ -98,6 +98,54 @@ def _query_forms(hit: Dict[str, Any]) -> List[str]:
     return forms
 
 
+def _snippet_names_country(snippet: str, countries: Set[str]) -> bool:
+    """Whole-word country or demonym. Two-letter codes only when written in capitals.
+
+    A lowercase "in" is the English word, not India.
+    """
+    from namesake.countries import CANON
+
+    low = snippet.lower()
+    for country in countries:
+        if re.search(r"\b" + re.escape(country.lower()) + r"\b", low):
+            return True
+    for alias, canon in CANON.items():
+        if canon not in countries or len(alias) < 3:
+            continue
+        if re.search(r"\b" + re.escape(alias) + r"\b", low):
+            return True
+    for match in re.finditer(r"\b[A-Z]{2}\b", snippet):
+        canon = CANON.get(match.group(0).lower())
+        if canon in countries:
+            return True
+    return False
+
+
+def _snippet_age(snippet: str) -> Optional[int]:
+    """One age in 16–110. Several different numbers → unknown, so we do not invent a birth year."""
+    patterns = (
+        r"(?:aged|age)\s+(\d{1,3})",
+        r"(\d{1,3})\s*-\s*year\s*-?\s*old",
+        r"(\d{1,3})\s+years?\s+old",
+        r"\bwas\s+(\d{1,3})\b",
+        r"\bthen\s+(\d{1,3})\b",
+        r"\bat\s+the\s+age\s+of\s+(\d{1,3})",
+        r"\bage\s+of\s+(\d{1,3})",
+        r"\bat\s+(\d{1,3})\b",
+        r",\s*(\d{2,3})\s*,",
+    )
+    found: List[int] = []
+    for pattern in patterns:
+        for match in re.finditer(pattern, snippet, re.I):
+            number = int(next(group for group in match.groups() if group))
+            if 16 <= number <= 110:
+                found.append(number)
+    unique = sorted(set(found))
+    if len(unique) == 1:
+        return unique[0]
+    return None
+
+
 def accepted_snippet_years(
     store: DataStore, hit: Dict[str, Any], countries: Set[str]
 ) -> List[DateInterval]:
@@ -120,35 +168,9 @@ def accepted_snippet_years(
         snippet = row.get("snippet") or ""
         if phrase not in snippet:
             continue
-        # must name a country tied to the hit
-        tied = False
-        for c in countries:
-            if c.lower() in snippet.lower():
-                tied = True
-                break
-            # also demonym / alias via reverse scan of CANON keys that map to c
-            from namesake.countries import CANON
-
-            for alias, canon in CANON.items():
-                if canon == c and alias in snippet.lower():
-                    tied = True
-                    break
-            if tied:
-                break
-        if not tied:
+        if not _snippet_names_country(snippet, countries):
             continue
-        # age + month/year in snippet → two birth years
-        age_m = re.search(
-            r"(?:aged|age)\s+(\d{1,3})"
-            r"|(\d{1,3})-year-old"
-            r"|(\d{1,3})\s+year[- ]old"
-            r"|was\s+(\d{1,3})\b"
-            r"|at the age of\s+(\d{1,3})"
-            r"|age of\s+(\d{1,3})"
-            r"|,\s*(\d{1,3}),\s*(?:who|a |an )",  # "Fiorani, 52, who was…"
-            snippet,
-            re.I,
-        )
+        age = _snippet_age(snippet)
         date_m = re.search(
             r"(January|February|March|April|May|June|July|August|September|October|November|December)"
             r"\s+(\d{4})|"
@@ -157,8 +179,7 @@ def accepted_snippet_years(
             snippet,
             re.I,
         )
-        if age_m and date_m:
-            age = int(next(g for g in age_m.groups() if g))
+        if age is not None and date_m:
             year = int(next(g for g in date_m.groups() if g and g.isdigit() and len(g) == 4))
             for y in age_at_date_years(age, year):
                 out.append(year_interval(y, source=row.get("result_id") or ""))
@@ -193,7 +214,19 @@ def gather_hit_facts(store: DataStore, hit_id: str) -> HitFacts:
         from namesake.readers import read_profile_first_paragraph
 
         profile_dobs, blocked = read_profile_first_paragraph(hit.get("profile_notes"))
-        dobs.extend(profile_dobs)
+        for iv in profile_dobs:
+            dobs.append(
+                DateInterval(
+                    iv.y_lo,
+                    iv.m_lo,
+                    iv.d_lo,
+                    iv.y_hi,
+                    iv.m_hi,
+                    iv.d_hi,
+                    certain=iv.certain,
+                    source="profile",
+                )
+            )
         if blocked and not dobs:
             dob_unknown = True
 

@@ -249,6 +249,7 @@ def _approved_checks_for_records(
                             "verified_dob": check.get("verified_dob"),
                             "document_country": check.get("document_country"),
                             "kind": "kyc",
+                            "at": check.get("checked_at") or "",
                         },
                     )
                 )
@@ -272,6 +273,7 @@ def _approved_checks_for_records(
                                 "verified_dob_interval": ext.dob,
                                 "document_country": ext.document_country,
                                 "kind": "note",
+                                "at": note.get("created_at") or "",
                                 # usable for confirm/clear when DOB+name parse even if not fully certain
                                 "certain": ext.certain
                                 or (ext.dob is not None and ext.verified_name is not None),
@@ -296,8 +298,75 @@ def _approved_checks_for_records(
                             },
                         )
                     )
-    items.sort(key=lambda x: x[0], reverse=True)
+    # Date, then id. File order must not decide a tie (shuffle test).
+    items.sort(key=lambda x: (x[0], x[1]), reverse=True)
     return [(sid, obj) for _, sid, obj in items]
+
+
+def _latest_parsed_at(approved: List[Tuple[str, Dict[str, Any]]]) -> str:
+    """Timestamp of the newest approved check that actually yielded a name and a DOB."""
+    latest = ""
+    for _source_id, check in approved:
+        if check.get("kind") == "residence":
+            continue
+        name = check.get("verified_name")
+        dob = check.get("verified_dob_interval")
+        if dob is None:
+            dob = check.get("verified_dob")
+        if name and dob:
+            at = check.get("at") or ""
+            if at > latest:
+                latest = at
+    return latest
+
+
+def _newer_unread_kyc_note(
+    store: DataStore, record_ids: List[str], latest_parsed_at: str
+) -> Optional[str]:
+    """Non-negative KYC note newer than the last parsed check, with no name and DOB taken from it."""
+    from namesake.readers import read_kyc_note
+
+    found_id: Optional[str] = None
+    found_at = ""
+    for cid in record_ids:
+        rec = store.customers.get(cid) or {}
+        email = (rec.get("email") or "").strip().lower()
+        if not email:
+            continue
+        for note in store.email_to_notes.get(email, []):
+            if (note.get("channel") or "").lower() != "kyc":
+                continue
+            created = note.get("created_at") or ""
+            if created <= latest_parsed_at:
+                continue
+            text = note.get("text") or ""
+            ext = read_kyc_note(text, created)
+            if ext.approved is False:
+                continue
+            if ext.verified_name and ext.dob is not None:
+                continue
+            note_id = note.get("note_id") or ""
+            if found_id is None or created > found_at or (created == found_at and note_id < found_id):
+                found_at = created
+                found_id = note_id
+    return found_id
+
+
+def _forget_verified_identity(person: Person, note_id: str) -> None:
+    """Verified name, DOB and document country are unknown. Declared facts must not clear or confirm."""
+    person.identity_unknown = True
+    person.dob_unknown = True
+    person.dob = None
+    person.verified_dob = None
+    person.verified_name = None
+    person.verified_doc_country = None
+    person.has_approved_check = False
+    if person.verified_source and person.verified_source in person.evidence_ids:
+        person.evidence_ids.remove(person.verified_source)
+    person.verified_source = None
+    person.countries = {fact.value for fact in person.country_facts}
+    if note_id and note_id not in person.evidence_ids:
+        person.evidence_ids.append(note_id)
 
 
 def build_person(store: DataStore, record_ids: List[str], screened: Dict[str, Any]) -> Person:
@@ -355,7 +424,17 @@ def build_person(store: DataStore, record_ids: List[str], screened: Dict[str, An
             person.evidence_ids.append(source_id)
         verified_picked = True
 
-    if person.verified_dob is not None:
+    # A newer KYC note we could not read must not fall back to an older check or the declared record.
+    blocking_note = _newer_unread_kyc_note(
+        store, person.record_ids, _latest_parsed_at(approved)
+    )
+    if blocking_note:
+        _forget_verified_identity(person, blocking_note)
+
+    if person.identity_unknown:
+        person.dob = None
+        person.dob_unknown = True
+    elif person.verified_dob is not None:
         person.dob = person.verified_dob
     elif dobs:
         # I6: conflicting declared DOBs → UNKNOWN

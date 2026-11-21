@@ -131,21 +131,43 @@ def _any_clearance_or_blocking(checks: Dict[str, CheckResult], name_dob_agree: b
     return False
 
 
+def proof_evidence(person: Person, hit: HitFacts) -> List[str]:
+    """Records that decided the hit: merged customers, the verified check, residence notes, snippet DOBs.
+
+    The hit's own id is not evidence. Order is sorted so set iteration cannot change the line.
+    """
+    found = set()
+    for record_id in person.record_ids:
+        if record_id:
+            found.add(record_id)
+    if person.verified_source:
+        found.add(person.verified_source)
+    for fact in person.country_facts:
+        source = fact.source_id or ""
+        if source and not source.startswith("CUS-") and not source.startswith("H-"):
+            found.add(source)
+    for dob in hit.dobs:
+        source = dob.source or ""
+        if source.startswith("SR-"):
+            found.add(source)
+    for evidence_id in person.evidence_ids:
+        if evidence_id.startswith("NOTE-") or evidence_id.startswith("KYC-"):
+            found.add(evidence_id)
+    return sorted(item for item in found if item and not item.startswith("H-") and not item.startswith("A-"))
+
+
 def _evidence_for(
     code: str, checks: Dict[str, CheckResult], person: Person, hit: HitFacts
 ) -> List[str]:
-    cr = checks.get(code)
-    if cr and cr.evidence:
-        return [e for e in cr.evidence if e]
-    ev = list(person.evidence_ids[:2]) + list(hit.evidence_ids[:1])
-    return [e for e in ev if e]
+    del code, checks
+    return proof_evidence(person, hit)
 
 
 def _evidence_for_review(
     person: Person, hit: HitFacts, checks: Dict[str, CheckResult]
 ) -> List[str]:
-    ev = list(person.evidence_ids[:2]) + list(hit.evidence_ids[:1])
-    return [e for e in ev if e]
+    del checks
+    return proof_evidence(person, hit)
 
 
 def aggregate_persons(
@@ -161,9 +183,14 @@ def aggregate_persons(
     record_id = "AMBIGUOUS"
     if len(decisions) == 1:
         d = results[0][0]
-        # Prefer shortest proof among same decision (I8)
-        best = min(results, key=lambda r: len(r[2]))
-        return d, best[1], record_id, best[2], best[3]
+        # Prefer shortest proof's reason code (I8), but cite every person who led there.
+        best = min(results, key=lambda r: (len(r[2]), r[1]))
+        ev: List[str] = []
+        for row in results:
+            for evidence_id in row[2]:
+                if evidence_id not in ev:
+                    ev.append(evidence_id)
+        return d, best[1], record_id, ev, best[3]
     # merge evidence lightly
     ev: List[str] = []
     for r in results:

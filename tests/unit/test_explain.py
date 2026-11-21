@@ -19,7 +19,8 @@ def test_review_has_counterfactual_sentence() -> None:
     )
     sentences = [s for s in reason.split(".") if s.strip()]
     assert 2 <= len(sentences) <= 4
-    assert "if" in reason.lower() or "human" in reason.lower()
+    assert "date of birth" in reason.lower()
+    assert "A human should review" not in reason
 
 
 def test_dob_mismatch_mentions_ids_and_values() -> None:

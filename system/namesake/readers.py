@@ -7,7 +7,14 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
 from namesake.countries import canonical_country, extract_country_from_text, is_unmappable_place
-from namesake.dates import DateInterval, age_at_date_years, parse_date, year_interval
+from namesake.dates import (
+    DateInterval,
+    age_at_date_years,
+    find_dates,
+    parse_date,
+    same_calendar_day,
+    year_interval,
+)
 from namesake.resources import load_json
 
 
@@ -34,60 +41,46 @@ def _polarity(text: str) -> Optional[bool]:
     return None
 
 
-_UPPER_NAME = re.compile(r"\b([A-Z][A-Z'’\-]+(?:\s+[A-Z][A-Z'’\-]+)+)\b")
 _YEAR = re.compile(r"\b((?:19|20)\d{2})\b")
-_BORN = re.compile(
-    r"\bborn\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4}|[A-Za-z]+\s+\d{1,2},?\s+\d{4}|\d{4}-\d{2}-\d{2})",
-    re.I,
-)
-_BIRTH_DATE_OF = re.compile(
-    r"\bbirth date of\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+[A-Za-z]+\s+\d{4}|\d{4}-\d{2}-\d{2})",
-    re.I,
-)
+
+
+def _uppercase_name(text: str) -> Optional[str]:
+    """Longest run of uppercase words. Accented capitals count; one word does not."""
+    words = re.findall(r"[^\W\d_]+", text, flags=re.UNICODE)
+    run: List[str] = []
+    best: List[str] = []
+    for word in words:
+        letters = [ch for ch in word if ch.isalpha()]
+        if len(letters) >= 2 and all(ch.isupper() for ch in letters):
+            run.append(word)
+            continue
+        if len(run) > len(best):
+            best = run
+        run = []
+    if len(run) > len(best):
+        best = run
+    if len(best) < 2:
+        return None
+    return " ".join(word.capitalize() for word in best)
 
 
 def read_kyc_note(text: str, created_at: str) -> NoteExtraction:
-    """KYC-channel note. Safe without LLM when tokens parse cleanly (SPEC correction §7)."""
+    """KYC-channel note. Tokens, not sentence templates: uppercase run, any other date, a country."""
     out = NoteExtraction()
     pol = _polarity(text)
     out.approved = pol
 
     created = parse_date(created_at)
-    dates: List[DateInterval] = []
-
-    for m in _BORN.finditer(text):
-        iv = parse_date(m.group(1))
-        if iv:
-            dates.append(iv)
-    for m in _BIRTH_DATE_OF.finditer(text):
-        iv = parse_date(m.group(1))
-        if iv and iv not in dates:
-            dates.append(iv)
-    for m in re.finditer(
-        r"\bDOB[:\s]+(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}|[A-Za-z]+ \d{1,2},? \d{4})",
-        text,
-        re.I,
-    ):
-        iv = parse_date(m.group(1))
-        if iv and iv not in dates:
-            dates.append(iv)
-    for pat in (
-        r"\b(\d{4}-\d{2}-\d{2})\b",
-        r"\b(\d{1,2}/\d{1,2}/\d{4})\b",
-        r"\b([A-Za-z]+ \d{1,2},? \d{4})\b",
-        r"\b(\d{1,2} [A-Za-z]+ \d{4})\b",
-    ):
-        for m in re.finditer(pat, text):
-            iv = parse_date(m.group(1))
-            if iv and iv not in dates:
-                dates.append(iv)
-
+    dates = find_dates(text)
     check_date = None
     dob = None
     if created:
         for iv in dates:
-            if iv.y_lo == created.y_lo and iv.m_lo == created.m_lo and iv.d_lo == created.d_lo:
+            if same_calendar_day(iv, created) or (
+                iv.y_lo == created.y_lo and iv.m_lo == created.m_lo and iv.d_lo == created.d_lo
+            ):
                 check_date = iv
+                break
         for iv in dates:
             if check_date is not None and (
                 iv.y_lo == check_date.y_lo
@@ -95,18 +88,13 @@ def read_kyc_note(text: str, created_at: str) -> NoteExtraction:
                 and iv.d_lo == check_date.d_lo
             ):
                 continue
-            # Prefer dates marked born/DOB; otherwise first non-check date
             dob = iv
             break
     elif dates:
         dob = dates[0]
 
     out.document_country = extract_country_from_text(text)
-
-    m = _UPPER_NAME.search(text)
-    if m:
-        out.verified_name = " ".join(w.capitalize() for w in m.group(1).split())
-
+    out.verified_name = _uppercase_name(text)
     out.dob = dob
 
     if pol is False:

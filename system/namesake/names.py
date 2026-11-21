@@ -62,26 +62,39 @@ def tokenize_name(
     if not name:
         return []
     text = _strip_brackets(str(name))
-    # Split on whitespace and common separators; keep letter runs
+    # Split on whitespace and common separators; keep letter runs.
+    # Hyphens and apostrophes split AND stay joined, so Müller-Kägi
+    # matches Müller and also Mullerkagi (P8: punctuation ignored;
+    # parts written together or apart match).
     rough = re.split(r"[\s,;/|+]+", text)
     forms = {normalize_part(f) for f in (company_legal_forms or []) if f}
     parts: List[str] = []
     seen: Set[str] = set()
-    for tok in rough:
+
+    def _add(tok: str) -> None:
         tok = tok.strip()
         if not tok or is_placeholder(tok):
-            continue
+            return
         if is_initial(tok):
-            continue
+            return
         norm = normalize_part(tok)
         if not norm:
-            continue
+            return
         if forms and norm in forms:
-            continue
+            return
         if norm in seen:
-            continue
+            return
         seen.add(norm)
         parts.append(norm)
+
+    for tok in rough:
+        pieces = [p for p in re.split(r"[-'’]+", tok) if p]
+        if len(pieces) >= 2:
+            for piece in pieces:
+                _add(piece)
+            _add("".join(pieces))
+        else:
+            _add(tok)
     return parts
 
 
