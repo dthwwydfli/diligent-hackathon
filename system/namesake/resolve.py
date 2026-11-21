@@ -199,6 +199,8 @@ def _merge_closure(store: DataStore, seeds: List[str]) -> List[List[str]]:
             # Document-number edges via approved KYC linked through onboarding
             for ob in store.customer_to_onboarding.get(cid, []):
                 app = ob.get("kyc_applicant_id")
+                if not app:
+                    continue
                 for check in store.applicant_to_checks.get(app, []):
                     if (check.get("result") or "").lower() != "approved":
                         continue
@@ -233,6 +235,8 @@ def _approved_checks_for_records(
     for cid in record_ids:
         for ob in store.customer_to_onboarding.get(cid, []):
             app = ob.get("kyc_applicant_id")
+            if not app:
+                continue
             for check in store.applicant_to_checks.get(app, []):
                 if (check.get("result") or "").lower() != "approved":
                     continue

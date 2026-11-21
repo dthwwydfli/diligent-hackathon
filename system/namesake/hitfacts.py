@@ -65,7 +65,9 @@ def earliest_dated_report(profile_notes: Optional[str]) -> Optional[DateInterval
 
 
 def _query_forms(hit: Dict[str, Any]) -> List[str]:
-    """Build candidate sorted-word queries from name + aliases (accent-folded)."""
+    """Build candidate sorted-word queries from name + aliases (accent-folded first)."""
+    import unicodedata
+
     from namesake.names import normalize_part
 
     forms: List[str] = []
@@ -76,15 +78,16 @@ def _query_forms(hit: Dict[str, Any]) -> List[str]:
             candidates.append(str(hit[key]))
     for alias in hit.get("aliases") or []:
         candidates.append(str(alias))
-    # also first/middle/last
     bits = [hit.get("first_name"), hit.get("middle_name"), hit.get("last_name")]
     joined = " ".join(str(b) for b in bits if b)
     if joined.strip():
         candidates.append(joined)
     for name in candidates:
-        # strip bracketed tags then accent-fold via normalize on tokens
         text = re.sub(r"\[[^\]]*\]|\([^)]*\)", " ", name)
-        raw_words = re.findall(r"[A-Za-z0-9]+", text)
+        # Fold accents before tokenising so Jérôme → Jerome, not J + r + me
+        nk = unicodedata.normalize("NFKD", text)
+        folded = "".join(ch for ch in nk if not unicodedata.combining(ch))
+        raw_words = re.findall(r"[A-Za-z0-9]+", folded)
         words = sorted({normalize_part(w) for w in raw_words if len(normalize_part(w)) > 1})
         if not words:
             continue
@@ -141,7 +144,8 @@ def accepted_snippet_years(
             r"|(\d{1,3})\s+year[- ]old"
             r"|was\s+(\d{1,3})\b"
             r"|at the age of\s+(\d{1,3})"
-            r"|age of\s+(\d{1,3})",
+            r"|age of\s+(\d{1,3})"
+            r"|,\s*(\d{1,3}),\s*(?:who|a |an )",  # "Fiorani, 52, who was…"
             snippet,
             re.I,
         )
