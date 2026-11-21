@@ -1,0 +1,35 @@
+[project]
+name = "namesake"
+version = "0.1.0"
+description = "Track 2 sanctions screening — same person or not"
+requires-python = ">=3.9"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.8",
+    "prek>=0.2",
+]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+src = ["system", "tests", "tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+# Keep typing.Optional / Dict / List: SPEC bans runtime X|Y; future annotations cover deferred forms,
+# but Optional reads clearer for the 3.9 contract.
+ignore = ["E501", "UP006", "UP035", "UP045", "SIM103", "SIM110"]
+
+[tool.ruff.lint.per-file-ignores]
+"system/run" = ["E902"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["system", "."]
+addopts = "-q"
+
+[tool.uv]
+package = false
