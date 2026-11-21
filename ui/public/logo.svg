@@ -1,16 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="64" height="64" viewBox="0 0 64 64" fill="none">
   <!-- Six arms swirl around one hollow centre: many records, one identity in the middle. -->
   <defs>
-    <clipPath id="tile"><rect width="64" height="64" rx="18"/></clipPath>
-    <linearGradient id="base" x1="4" y1="2" x2="60" y2="62" gradientUnits="userSpaceOnUse">
+    <linearGradient id="base" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#2dd4bf"/>
       <stop offset="0.45" stop-color="#5b6cf0"/>
       <stop offset="1" stop-color="#6d28d9"/>
     </linearGradient>
-    <radialGradient id="glow" cx="32" cy="32" r="30" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#a5b0ff" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#a5b0ff" stop-opacity="0"/>
-    </radialGradient>
     <!-- Blur then sharpen the alpha so touching circles melt into one soft blob. -->
     <filter id="goo" x="-20%" y="-20%" width="140%" height="140%">
       <feGaussianBlur stdDeviation="1.4"/>
@@ -23,27 +18,27 @@
       <circle cx="44.6" cy="17.6" r="2.3"/>
     </g>
     <ellipse id="orbit" cx="51" cy="24" rx="3.1" ry="1.25" transform="rotate(62 51 24)"/>
+    <!-- The shape is a mask over one gradient, so the colour flows across all arms instead of repeating per arm. -->
+    <mask id="mark" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <g transform="translate(32 32) scale(1.3) translate(-32 -32)" fill="#fff">
+        <g filter="url(#goo)">
+          <use xlink:href="#arm"/>
+          <use xlink:href="#arm" transform="rotate(60 32 32)"/>
+          <use xlink:href="#arm" transform="rotate(120 32 32)"/>
+          <use xlink:href="#arm" transform="rotate(180 32 32)"/>
+          <use xlink:href="#arm" transform="rotate(240 32 32)"/>
+          <use xlink:href="#arm" transform="rotate(300 32 32)"/>
+        </g>
+        <g fill-opacity="0.7">
+          <use xlink:href="#orbit"/>
+          <use xlink:href="#orbit" transform="rotate(60 32 32)"/>
+          <use xlink:href="#orbit" transform="rotate(120 32 32)"/>
+          <use xlink:href="#orbit" transform="rotate(180 32 32)"/>
+          <use xlink:href="#orbit" transform="rotate(240 32 32)"/>
+          <use xlink:href="#orbit" transform="rotate(300 32 32)"/>
+        </g>
+      </g>
+    </mask>
   </defs>
-  <g clip-path="url(#tile)">
-    <rect width="64" height="64" fill="url(#base)"/>
-    <rect width="64" height="64" fill="url(#glow)"/>
-  </g>
-  <g transform="translate(32 32) scale(0.8) translate(-32 -32)">
-  <g fill="#fff" filter="url(#goo)">
-    <use xlink:href="#arm"/>
-    <use xlink:href="#arm" transform="rotate(60 32 32)"/>
-    <use xlink:href="#arm" transform="rotate(120 32 32)"/>
-    <use xlink:href="#arm" transform="rotate(180 32 32)"/>
-    <use xlink:href="#arm" transform="rotate(240 32 32)"/>
-    <use xlink:href="#arm" transform="rotate(300 32 32)"/>
-  </g>
-  <g fill="#fff" fill-opacity="0.85">
-    <use xlink:href="#orbit"/>
-    <use xlink:href="#orbit" transform="rotate(60 32 32)"/>
-    <use xlink:href="#orbit" transform="rotate(120 32 32)"/>
-    <use xlink:href="#orbit" transform="rotate(180 32 32)"/>
-    <use xlink:href="#orbit" transform="rotate(240 32 32)"/>
-    <use xlink:href="#orbit" transform="rotate(300 32 32)"/>
-  </g>
-  </g>
+  <rect width="64" height="64" fill="url(#base)" mask="url(#mark)"/>
 </svg>
