@@ -51,6 +51,12 @@ _STOP = frozenset(
     }
 )
 
+# Canonical English name → lowercase ISO-2 (for UI flags).
+_NAME_TO_ISO2: Dict[str, str] = {}
+for _alias, _name in CANON.items():
+    if len(_alias) == 2 and _alias.isalpha() and _alias not in _STOP:
+        _NAME_TO_ISO2.setdefault(_name, _alias.lower())
+
 
 def canonical_country(raw: Optional[str]) -> Optional[str]:
     if raw is None:
@@ -73,6 +79,22 @@ def canonical_country(raw: Optional[str]) -> Optional[str]:
     if key in _STOP and len(key) <= 2 and not text.isupper():
         return None
     return CANON.get(key)
+
+
+def iso2_for_country(name: Optional[str]) -> Optional[str]:
+    """Lowercase ISO-2 for a canonical country name, or None."""
+    if not name:
+        return None
+    got = _NAME_TO_ISO2.get(name)
+    if got:
+        return got
+    canon = canonical_country(name)
+    if canon:
+        return _NAME_TO_ISO2.get(canon)
+    key = str(name).strip().lower()
+    if len(key) == 2 and key.isalpha() and key in ISO2_CODES:
+        return key
+    return None
 
 
 def is_unmappable_place(raw: Optional[str]) -> bool:

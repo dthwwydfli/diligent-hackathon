@@ -28,6 +28,15 @@ dist/
 build/
 *.egg-info/
 
+# Demo / run artefacts (built from participant data)
+demo/
+runs/
+ui/public/data/
+
+# UI toolchain
+ui/node_modules/
+ui/dist/
+
 # OS / editor
 .DS_Store
 .idea/

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from namesake.explain import build_reason
 from namesake.facts import Person
@@ -11,6 +11,7 @@ from namesake.policy_table import aggregate_persons, decide_one_person
 from namesake.resolve import resolve_customers
 from namesake.schema import make_line
 from namesake.store import DataStore
+from namesake.trace import build_case_page, build_engine_trace
 
 
 def decide(store: DataStore, hit_id: str) -> Dict[str, Any]:
@@ -41,9 +42,14 @@ def decide(store: DataStore, hit_id: str) -> Dict[str, Any]:
             ghost.names.append(Fact("name", screened["name"], "screened", "name", CERTAIN))
         decision, code, evidence, ctx = decide_one_person(ghost, hit, store)
         reason = build_reason(decision, code, ghost, hit, ctx)
-        return make_line(hit_id, alert_id, decision, code, None, reason, evidence)
+        line = make_line(hit_id, alert_id, decision, code, None, reason, evidence)
+        results: List[Tuple[str, str, List[str], Dict[str, Any], Person]] = [
+            (decision, code, evidence, ctx, ghost)
+        ]
+        _attach_trace(store, hit_id, alert, [], hit, results, line)
+        return line
 
-    results: List[Tuple[str, str, List[str], Dict[str, Any], Person]] = []
+    results = []
     for person in persons:
         d, c, ev, ctx = decide_one_person(person, hit, store)
         results.append((d, c, ev, ctx, person))
@@ -54,4 +60,38 @@ def decide(store: DataStore, hit_id: str) -> Dict[str, Any]:
         # multi-person: still explain from first for template fill
         person = results[0][4]
     reason = build_reason(decision, code, person, hit, ctx or results[0][3])
-    return make_line(hit_id, alert_id, decision, code, record_id, reason, evidence)
+    line = make_line(hit_id, alert_id, decision, code, record_id, reason, evidence)
+    _attach_trace(store, hit_id, alert, persons, hit, results, line)
+    return line
+
+
+def take_trace(line: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Pop and return the attached case-page trace, if any."""
+    return line.pop("_namesake_trace", None)  # type: ignore[no-any-return]
+
+
+def take_engine_trace(line: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    return line.pop("_namesake_engine_trace", None)  # type: ignore[no-any-return]
+
+
+def _attach_trace(
+    store: DataStore,
+    hit_id: str,
+    alert: Dict[str, Any],
+    persons: List[Person],
+    hit: Any,
+    results: List[Tuple[str, str, List[str], Dict[str, Any], Person]],
+    line: Dict[str, Any],
+) -> None:
+    # Attached only while NAMESAKE_TRACE_DIR is set; pipeline strips before write.
+    import os
+
+    if not os.environ.get("NAMESAKE_TRACE_DIR"):
+        return
+    clean = {k: v for k, v in line.items() if not k.startswith("_")}
+    line["_namesake_trace"] = build_case_page(
+        store, hit_id, alert, persons, hit, results, clean
+    )
+    line["_namesake_engine_trace"] = build_engine_trace(
+        store, hit_id, alert, persons, hit, results, clean
+    )

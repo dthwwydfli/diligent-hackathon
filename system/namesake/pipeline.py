@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import traceback
 from typing import Any, Dict, List, Optional
@@ -18,11 +19,14 @@ def run_pipeline(data_folder: str, output_file: str) -> None:
     for hit_id in store.hit_ids_sorted():
         hit = store.hits[hit_id]
         alert_id = hit.get("alert_id") or "A-000000"
+        case_trace: Optional[Dict[str, Any]] = None
+        engine_trace: Optional[Dict[str, Any]] = None
         try:
             row = decide_hit(store, hit_id)
+            if isinstance(row, dict):
+                case_trace = row.pop("_namesake_trace", None)
+                engine_trace = row.pop("_namesake_engine_trace", None)
         except Exception:
-            if trace_dir:
-                _write_trace(trace_dir, hit_id, traceback.format_exc())
             row = make_line(
                 hit_id=hit_id,
                 alert_id=alert_id,
@@ -30,11 +34,23 @@ def run_pipeline(data_folder: str, output_file: str) -> None:
                 reason_code="INSUFFICIENT_DATA",
                 customer_record_id=None,
                 reason=(
-                    "Processing failed for this hit; the run continued. "
-                    "A human should review with the alert evidence."
+                    "Processing this hit failed, so it was left for review. "
+                    "The other hits in the run were not affected."
                 ),
-                evidence=[hit_id, alert_id],
+                evidence=[alert_id],
             )
+            if trace_dir:
+                case_trace = {
+                    "hit_id": hit_id,
+                    "alert_id": alert_id,
+                    "error": traceback.format_exc(),
+                    "decision": "REVIEW",
+                    "reason_code": "INSUFFICIENT_DATA",
+                    "output_line": dict(row),
+                }
+        if trace_dir:
+            payload = case_trace or engine_trace or {"hit_id": hit_id, "output_line": dict(row)}
+            _write_trace(trace_dir, hit_id, payload)
         rows.append(row)
     write_jsonl(output_file, rows)
 
@@ -55,8 +71,9 @@ def set_engine(fn: Optional[Any]) -> None:
     decide_hit._engine = fn  # type: ignore[attr-defined]
 
 
-def _write_trace(trace_dir: str, hit_id: str, text: str) -> None:
+def _write_trace(trace_dir: str, hit_id: str, payload: Dict[str, Any]) -> None:
     os.makedirs(trace_dir, exist_ok=True)
-    path = os.path.join(trace_dir, f"{hit_id}.txt")
+    path = os.path.join(trace_dir, f"{hit_id}.json")
     with open(path, "w", encoding="utf-8") as handle:
-        handle.write(text)
+        json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
+        handle.write("\n")
