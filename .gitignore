@@ -1,5 +1,5 @@
-# Participant data — never commit
-data/
+# Participant data — never commit (root only; system/namesake/data/ is shipped tables)
+/data/
 *.xlsx
 
 # Secrets and traces
