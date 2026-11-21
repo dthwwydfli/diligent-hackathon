@@ -1,0 +1,37 @@
+{
+  "description": "Polarity cues for KYC-channel notes. Positive + no negative ⇒ approved (safe without LLM when other tokens parse).",
+  "positive": [
+    "verified",
+    "verification",
+    "validated",
+    "validate",
+    "approved",
+    "passed",
+    "cleared",
+    "successful check",
+    "successfully",
+    "completed identity",
+    "identity verification",
+    "successfully verified",
+    "successfully processed",
+    "successfully validated",
+    "processed the",
+    "performed a successful",
+    "check passed",
+    "confirmed"
+  ],
+  "negative": [
+    "failed",
+    "rejected",
+    "could not",
+    "couldn't",
+    "unable",
+    "expired",
+    "declined",
+    "mismatch",
+    "not verified",
+    "unverified",
+    "did not pass",
+    "incomplete"
+  ]
+}

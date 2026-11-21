@@ -1,0 +1,11 @@
+{
+  "description": "Exact listing phrases from POLICY.md P5. Wording is the same in the unseen set.",
+  "by_category": {
+    "Sanctions": "a sanctioned individual",
+    "PEP": "a politically exposed person",
+    "Enforcement": "the subject of enforcement action",
+    "Adverse Media": "named in adverse media",
+    "SOE": "a state-owned enterprise official"
+  },
+  "default": "named on a watchlist"
+}

@@ -1,0 +1,83 @@
+{
+  "description": "Decision table. Engine walks rows in order. Each cites a POLICY clause. Never hard-code branches outside this file.",
+  "rows": [
+    {
+      "id": "clear_type",
+      "when": "ENTITY_TYPE_MISMATCH",
+      "decision": "DIFFERENT_ENTITY",
+      "reason_code": "ENTITY_TYPE_MISMATCH",
+      "policy": "P6 Type"
+    },
+    {
+      "id": "clear_deceased",
+      "when": "DECEASED",
+      "decision": "DIFFERENT_ENTITY",
+      "reason_code": "DECEASED",
+      "policy": "P6 Time / I4"
+    },
+    {
+      "id": "clear_temporal",
+      "when": "TEMPORAL_IMPOSSIBILITY",
+      "decision": "DIFFERENT_ENTITY",
+      "reason_code": "TEMPORAL_IMPOSSIBILITY",
+      "policy": "P6 Time"
+    },
+    {
+      "id": "clear_dob",
+      "when": "DOB_MISMATCH",
+      "decision": "DIFFERENT_ENTITY",
+      "reason_code": "DOB_MISMATCH",
+      "policy": "P6 DOB"
+    },
+    {
+      "id": "clear_name",
+      "when": "NAME_MISMATCH_VERIFIED",
+      "decision": "DIFFERENT_ENTITY",
+      "reason_code": "NAME_MISMATCH_VERIFIED",
+      "policy": "P6 Name"
+    },
+    {
+      "id": "clear_location",
+      "when": "LOCATION_MISMATCH",
+      "decision": "DIFFERENT_ENTITY",
+      "reason_code": "LOCATION_MISMATCH",
+      "policy": "P6 Location",
+      "blocked_when": "NAME_AND_DOB_AGREE"
+    },
+    {
+      "id": "review_location_with_agree",
+      "when": "LOCATION_MISMATCH_BUT_NAME_DOB_AGREE",
+      "decision": "REVIEW",
+      "reason_code": "INSUFFICIENT_DATA",
+      "policy": "P6 Location exception"
+    },
+    {
+      "id": "same_name_dob_location",
+      "when": "NAME_DOB_LOCATION_MATCH",
+      "decision": "SAME_ENTITY",
+      "reason_code": "NAME_DOB_LOCATION_MATCH",
+      "policy": "P7"
+    },
+    {
+      "id": "same_name_dob",
+      "when": "NAME_DOB_MATCH",
+      "decision": "SAME_ENTITY",
+      "reason_code": "NAME_DOB_MATCH",
+      "policy": "P7"
+    },
+    {
+      "id": "same_company",
+      "when": "NAME_LOCATION_MATCH",
+      "decision": "SAME_ENTITY",
+      "reason_code": "NAME_LOCATION_MATCH",
+      "policy": "P7 companies"
+    },
+    {
+      "id": "review_default",
+      "when": "DEFAULT",
+      "decision": "REVIEW",
+      "reason_code": "INSUFFICIENT_DATA",
+      "policy": "P7 Otherwise REVIEW"
+    }
+  ]
+}
