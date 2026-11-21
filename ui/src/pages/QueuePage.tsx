@@ -21,7 +21,7 @@ function filterDecision(f: FilterKey, d: Decision): boolean {
 }
 
 export function QueuePage() {
-  const { rows } = useQueue()
+  const { rows, loading, unreachable } = useQueue()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const decisionParam = searchParams.get('decision') as FilterKey | null
@@ -62,6 +62,24 @@ export function QueuePage() {
   return (
     <AppShell>
       <div className="rounded-[20px] bg-surface p-5">
+        {!loading && rows.length === 0 ? (
+          <p className="py-16 text-center text-[15px] text-ink-3">
+            {unreachable ? (
+              <>
+                Can't reach /data. Is the dev server running?{' '}
+                <span className="font-mono text-[12px] text-ink-2">cd ui && npm run dev</span>
+              </>
+            ) : (
+              <>
+                No queue data. Run the engine with traces, then{' '}
+                <span className="font-mono text-[12px] text-ink-2">
+                  python tools/report/export_ui_data.py traces ui/public/data
+                </span>{' '}
+                and refresh.
+              </>
+            )}
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <nav className="relative flex rounded-[10px] bg-plot p-1" aria-label="Queue filter">
             {filters.map((f) => (

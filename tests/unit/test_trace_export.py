@@ -97,6 +97,10 @@ def _write_world(data: Path) -> None:
 def test_iso2_for_country() -> None:
     assert iso2_for_country("Brazil") == "br"
     assert iso2_for_country("United Kingdom") == "gb"
+    # These ISO codes are also English words. Still the right flag.
+    assert iso2_for_country("United States") == "us"
+    assert iso2_for_country("Austria") == "at"
+    assert iso2_for_country("India") == "in"
     assert iso2_for_country(None) is None
 
 

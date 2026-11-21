@@ -36,7 +36,7 @@ export function RunPage() {
 
   if (!summary) {
     return (
-      <AppShell meta="Synthetic sample">
+      <AppShell>
         <div className="flex h-[320px] items-center justify-center rounded-[20px] bg-surface">
           <p className="text-[18px] text-ink-3">No run yet</p>
         </div>
@@ -48,7 +48,7 @@ export function RunPage() {
   const order: Decision[] = ['DIFFERENT_ENTITY', 'SAME_ENTITY', 'REVIEW']
 
   return (
-    <AppShell meta={`${summary.hits} hits · ${summary.seconds}s · $${summary.cost_usd}`}>
+    <AppShell>
       <div className="rounded-[20px] bg-surface p-6">
         <div className="grid grid-cols-4 gap-4">
           {[

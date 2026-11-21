@@ -17,7 +17,7 @@ export function CasePage() {
   const [queue, setQueue] = useState<QueueRow[]>([])
 
   useEffect(() => {
-    void loadQueue().then(setQueue)
+    void loadQueue().then(({ rows }) => setQueue(rows))
   }, [])
 
   const pager = useMemo(() => {

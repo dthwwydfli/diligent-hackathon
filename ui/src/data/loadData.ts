@@ -2,49 +2,65 @@ import { useCallback, useEffect, useState } from 'react'
 import type { CasePage, QueueRow, RunSummary } from '../types/case'
 import { casesByHitId, queueRows } from './syntheticSample'
 
-async function fetchJson<T>(url: string): Promise<T | null> {
+const isTest = import.meta.env.MODE === 'test'
+
+async function fetchJson<T>(
+  url: string,
+): Promise<{ data: T | null; reason: 'ok' | 'missing' | 'error' }> {
   try {
     const res = await fetch(url)
-    if (!res.ok) return null
-    return (await res.json()) as T
+    if (res.status === 404) return { data: null, reason: 'missing' }
+    if (!res.ok) return { data: null, reason: 'error' }
+    return { data: (await res.json()) as T, reason: 'ok' }
   } catch {
-    return null
+    return { data: null, reason: 'error' }
   }
 }
 
-export async function loadQueue(): Promise<QueueRow[]> {
-  const live = await fetchJson<QueueRow[]>('/data/queue.json')
-  return live ?? queueRows
+// `unreachable` means the fetch itself failed (dev server down), not that the export is missing.
+export async function loadQueue(): Promise<{ rows: QueueRow[]; unreachable: boolean }> {
+  const { data, reason } = await fetchJson<QueueRow[]>('/data/queue.json')
+  if (Array.isArray(data) && data.length > 0) return { rows: data, unreachable: false }
+  if (isTest) return { rows: queueRows, unreachable: false }
+  return { rows: [], unreachable: reason === 'error' }
 }
 
 export async function loadRunSummary(): Promise<RunSummary | null> {
-  const live = await fetchJson<RunSummary>('/data/summary.json')
-  return live
+  const { data } = await fetchJson<RunSummary>('/data/summary.json')
+  return data
 }
 
 export async function loadCase(hitId: string): Promise<CasePage | null> {
-  const live = await fetchJson<CasePage>(`/data/cases/${encodeURIComponent(hitId)}.json`)
-  return live ?? casesByHitId[hitId] ?? null
+  const { data, reason } = await fetchJson<CasePage>(
+    `/data/cases/${encodeURIComponent(hitId)}.json`,
+  )
+  if (data) return data
+  if (reason === 'missing' || isTest) return casesByHitId[hitId] ?? null
+  return null
 }
 
 export function useQueue() {
-  const [rows, setRows] = useState<QueueRow[]>(queueRows)
+  const [rows, setRows] = useState<QueueRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [live, setLive] = useState(false)
+  const [unreachable, setUnreachable] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    loadQueue().then((data) => {
-      if (!cancelled) {
-        setRows(data)
-        setLoading(false)
-      }
+    loadQueue().then(({ rows: data, unreachable }) => {
+      if (cancelled) return
+      setRows(data)
+      setUnreachable(unreachable)
+      // Sample hit IDs are H-000001…; live export uses real folder IDs.
+      setLive(data.length > 0 && !data.every((r) => /^H-00000\d$/.test(r.hit_id)))
+      setLoading(false)
     })
     return () => {
       cancelled = true
     }
   }, [])
 
-  return { rows, loading }
+  return { rows, loading, live, unreachable }
 }
 
 export function useRunSummary() {

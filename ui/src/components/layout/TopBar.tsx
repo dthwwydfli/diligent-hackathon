@@ -1,18 +1,32 @@
 import { motion } from 'motion/react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink, useLocation, useParams } from 'react-router-dom'
+import { loadQueue } from '../../data/loadData'
 
-const tabs = [
-  { to: '/', label: 'Queue', match: (p: string) => p === '/' },
-  { to: '/case/H-000001', label: 'Case', match: (p: string) => p.startsWith('/case') },
-  { to: '/run', label: 'Run', match: (p: string) => p === '/run' },
-] as const
-
-interface TopBarProps {
-  meta?: string
-}
-
-export function TopBar({ meta = 'Synthetic sample · 3 hits · 12s' }: TopBarProps) {
+export function TopBar() {
   const { pathname } = useLocation()
+  const { hitId } = useParams<{ hitId?: string }>()
+  const [caseTo, setCaseTo] = useState('/case/H-000001')
+
+  useEffect(() => {
+    if (hitId) {
+      setCaseTo(`/case/${hitId}`)
+      return
+    }
+    let cancelled = false
+    loadQueue().then(({ rows }) => {
+      if (!cancelled && rows[0]) setCaseTo(`/case/${rows[0].hit_id}`)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [hitId])
+
+  const tabs = [
+    { to: '/', label: 'Queue', match: (p: string) => p === '/' },
+    { to: caseTo, label: 'Case', match: (p: string) => p.startsWith('/case') },
+    { to: '/run', label: 'Run', match: (p: string) => p === '/run' },
+  ]
 
   return (
     <header className="flex items-center justify-between gap-6 py-4">
@@ -47,7 +61,7 @@ export function TopBar({ meta = 'Synthetic sample · 3 hits · 12s' }: TopBarPro
         })}
       </nav>
 
-      <p className="max-w-[280px] truncate text-right text-xs text-ink-3">{meta}</p>
+      <div className="w-[120px]" aria-hidden />
     </header>
   )
 }

@@ -51,7 +51,7 @@ export function linkStroke(outcome: LinkOutcome): { stroke: string; dash?: strin
     case 'clear':
       return { stroke: 'var(--color-clear)' }
     case 'review':
-      return { stroke: '#E2D400', dash: '6 4' }
+      return { stroke: 'var(--color-review)', dash: '6 4' }
     case 'source':
       return { stroke: 'var(--color-source)', dash: '4 3' }
   }

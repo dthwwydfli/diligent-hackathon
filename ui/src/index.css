@@ -58,20 +58,21 @@
   --color-ink-2: #55585e;
   --color-ink-3: #8e9299;
   --color-ink-4: #b4b8be;
-  --color-clear: #b4f110;
-  --color-clear-soft: #ecf7d6;
-  --color-clear-ink: #3f6300;
-  --color-match: #ff6a9e;
-  --color-match-soft: #ffe6ef;
-  --color-match-ink: #b3245a;
-  --color-review: #f1e516;
-  --color-review-soft: #fbf7cf;
-  --color-review-ink: #6e6500;
+  /* Decisions sit on one cool ramp (teal, indigo, violet) so they read as a family. */
+  --color-clear: #2dd4bf;
+  --color-clear-soft: #d8f5f0;
+  --color-clear-ink: #0f5e56;
+  --color-match: #7c3aed;
+  --color-match-soft: #ece4fd;
+  --color-match-ink: #5021a8;
+  --color-review: #a5b0ff;
+  --color-review-soft: #e6e9ff;
+  --color-review-ink: #2b3a99;
   --color-caution: #fc9519;
   --color-caution-soft: #ffebd3;
   --color-source: #0068ff;
   --color-source-soft: #dce8ff;
-  --color-verified: #5cd389;
+  --color-verified: #2dd4bf;
   --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
 }

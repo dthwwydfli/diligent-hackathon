@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
@@ -13,7 +13,9 @@ describe('QueuePage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getAllByText('Sam Chen').length).toBeGreaterThan(0)
+    await waitFor(() => {
+      expect(screen.getAllByText('Sam Chen').length).toBeGreaterThan(0)
+    })
     expect(screen.getAllByText('Jordan Blake').length).toBeGreaterThan(0)
 
     await user.click(screen.getByRole('button', { name: /Same ·/ }))
@@ -29,6 +31,10 @@ describe('QueuePage', () => {
         <QueuePage />
       </MemoryRouter>,
     )
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Jordan Blake').length).toBeGreaterThan(0)
+    })
 
     const search = screen.getByPlaceholderText('Search customer or listed name')
     await user.type(search, 'Jordan')
