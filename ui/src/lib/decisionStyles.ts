@@ -56,3 +56,15 @@ export function linkStroke(outcome: LinkOutcome): { stroke: string; dash?: strin
       return { stroke: 'var(--color-source)', dash: '4 3' }
   }
 }
+// Reason codes arrive as SCREAMING_SNAKE from the engine; DOB stays an acronym.
+export function reasonLabel(code: string): string {
+  const words = code.toLowerCase().split('_').map((w) => (w === 'dob' ? 'DOB' : w))
+  const text = words.join(' ')
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+export const decisionColorVar: Record<Decision, string> = {
+  DIFFERENT_ENTITY: 'var(--color-clear)',
+  SAME_ENTITY: 'var(--color-match)',
+  REVIEW: 'var(--color-review)',
+}

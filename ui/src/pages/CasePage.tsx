@@ -6,7 +6,6 @@ import type { QueueRow } from '../types/case'
 import { DecisionPanel } from '../components/case/DecisionPanel'
 import { IdentityGraph } from '../components/case/IdentityGraph'
 import { CountryFlag } from '../components/icons/CountryFlag'
-import { AppShell } from '../components/layout/AppShell'
 
 export function CasePage() {
   const { hitId } = useParams<{ hitId: string }>()
@@ -37,20 +36,20 @@ export function CasePage() {
 
   if (loading) {
     return (
-      <AppShell>
+      <>
         <p className="text-ink-3">Loading case…</p>
-      </AppShell>
+      </>
     )
   }
 
   if (!page) {
     return (
-      <AppShell>
+      <>
         <p className="text-ink-3">Case not found.</p>
         <Link to="/" className="text-source">
           Back to queue
         </Link>
-      </AppShell>
+      </>
     )
   }
 
@@ -61,8 +60,8 @@ export function CasePage() {
   }
 
   return (
-    <AppShell>
-      <header className="mb-4 flex flex-wrap items-start justify-between gap-4">
+    <div className="flex h-full flex-col">
+      <header className="mb-3 flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <Link
             to="/"
@@ -72,7 +71,7 @@ export function CasePage() {
             <ChevronLeft size={18} />
           </Link>
           <div>
-            <h1 className="flex items-center gap-2 text-[28px] font-normal tracking-[-0.6px] text-ink">
+            <h1 className="flex items-center gap-2 text-[24px] font-normal tracking-[-0.5px] text-ink">
               <CountryFlag iso2={page.customer_country_iso2} size={22} />
               {page.customer_name}
             </h1>
@@ -115,7 +114,7 @@ export function CasePage() {
         </div>
       </header>
 
-      <div className="flex gap-3">
+      <div className="flex min-h-0 flex-1 gap-3">
         <IdentityGraph page={page} highlightLinkIds={highlightLinkIds} />
         <DecisionPanel
           page={page}
@@ -123,6 +122,6 @@ export function CasePage() {
           onHoverLinks={setHighlightLinkIds}
         />
       </div>
-    </AppShell>
+    </div>
   )
 }

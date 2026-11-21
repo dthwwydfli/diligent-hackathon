@@ -104,7 +104,7 @@ export function IdentityGraph({ page, highlightLinkIds }: IdentityGraphProps) {
   const profile = page.profile
 
   return (
-    <section className="min-w-0 flex-1 rounded-[20px] bg-plot p-5">
+    <section className="flex min-w-0 flex-1 flex-col rounded-[20px] bg-plot p-5">
       <motion.div
         initial={reduced ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -112,7 +112,7 @@ export function IdentityGraph({ page, highlightLinkIds }: IdentityGraphProps) {
         <h2 className="text-[22px] font-normal tracking-[-0.4px] text-ink">
           Identity Graph
         </h2>
-        <div className="mt-4 grid grid-cols-2 gap-4 text-[11px] font-medium uppercase tracking-[0.06em] text-ink-3">
+        <div className="mt-2 grid grid-cols-2 gap-4 text-[11px] font-medium uppercase tracking-[0.06em] text-ink-3">
           <div>
             <p>Our customer</p>
             <p className="mt-1 text-[12px] font-normal normal-case tracking-normal text-ink-2">
@@ -125,7 +125,7 @@ export function IdentityGraph({ page, highlightLinkIds }: IdentityGraphProps) {
 
       <div
         ref={boardRef}
-        className="relative mt-4 h-[560px] w-full overflow-hidden rounded-[20px] bg-plot"
+        className="relative mt-3 min-h-0 w-full flex-1 overflow-y-auto rounded-[20px] bg-plot"
       >
         <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
           {edges.map((e) => {

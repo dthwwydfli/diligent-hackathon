@@ -1,11 +1,12 @@
 import { motion } from 'motion/react'
 import { useEffect, useState } from 'react'
-import { NavLink, useLocation, useParams } from 'react-router-dom'
+import { NavLink, useLocation, useMatch } from 'react-router-dom'
 import { loadQueue } from '../../data/loadData'
 
 export function TopBar() {
   const { pathname } = useLocation()
-  const { hitId } = useParams<{ hitId?: string }>()
+  // The bar lives in the layout route, so it reads the hit id from the URL, not route params.
+  const hitId = useMatch('/case/:hitId')?.params.hitId
   const [caseTo, setCaseTo] = useState('/case/H-000001')
 
   useEffect(() => {
@@ -31,9 +32,14 @@ export function TopBar() {
   return (
     <header className="flex items-center justify-between gap-6 py-4">
       <div className="flex items-center gap-3">
-        <div className="relative flex h-5 w-5 items-center justify-center rounded-[6px] bg-ink" aria-hidden>
-          <span className="absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-clear" />
-        </div>
+        <motion.img
+          src="/logo.svg"
+          alt=""
+          className="h-7 w-7"
+          initial={{ opacity: 0, scale: 0.85, rotate: -40 }}
+          animate={{ opacity: 1, scale: 1, rotate: 0 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+        />
         <span className="text-base font-semibold tracking-[-0.02em] text-ink">Namesake</span>
       </div>
 

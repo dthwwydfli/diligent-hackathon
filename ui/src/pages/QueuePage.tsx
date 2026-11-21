@@ -7,7 +7,6 @@ import { decisionFilterKey } from '../data/syntheticSample'
 import type { Decision } from '../types/case'
 import { decisionChipLabel, strongChipClass } from '../lib/decisionStyles'
 import { CountryFlag } from '../components/icons/CountryFlag'
-import { AppShell } from '../components/layout/AppShell'
 
 type FilterKey = 'All' | 'Review' | 'Same' | 'Cleared'
 
@@ -60,8 +59,8 @@ export function QueuePage() {
   })
 
   return (
-    <AppShell>
-      <div className="rounded-[20px] bg-surface p-5">
+    <>
+      <div className="flex h-full flex-col rounded-[20px] bg-surface p-5">
         {!loading && rows.length === 0 ? (
           <p className="py-16 text-center text-[15px] text-ink-3">
             {unreachable ? (
@@ -115,8 +114,9 @@ export function QueuePage() {
           </label>
         </div>
 
-        <table className="mt-5 w-full border-collapse text-left text-[13px]">
-          <thead>
+        <div className="mt-5 min-h-0 flex-1 overflow-y-auto">
+        <table className="w-full border-collapse text-left text-[13px]">
+          <thead className="sticky top-0 bg-surface">
             <tr className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-3">
               <th className="pb-3 font-medium">Customer</th>
               <th className="pb-3 font-medium">Listed as</th>
@@ -163,7 +163,8 @@ export function QueuePage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
-    </AppShell>
+    </>
   )
 }

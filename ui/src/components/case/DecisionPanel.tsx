@@ -28,7 +28,7 @@ export function DecisionPanel({ page, highlightLinkIds, onHoverLinks }: Decision
   const [_highlight, setHighlight] = useState<string[]>(highlightLinkIds)
 
   return (
-    <aside className="w-[360px] shrink-0 rounded-[20px] bg-surface p-5">
+    <aside className="w-[360px] shrink-0 overflow-y-auto rounded-[20px] bg-surface p-5">
       <motion.div
         initial={reduced ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -54,11 +54,11 @@ export function DecisionPanel({ page, highlightLinkIds, onHoverLinks }: Decision
         )}
       </motion.div>
 
-      <h3 className="mt-6 text-[18px] font-normal tracking-[-0.3px] text-ink">
+      <h3 className="mt-5 text-[18px] font-normal tracking-[-0.3px] text-ink">
         How it was decided
       </h3>
 
-      <ul className="mt-3 space-y-2">
+      <ul className="mt-3 space-y-1.5">
         {page.ladder.map((row, i) => {
           const isResult = row.outcome === 'result'
           return (
@@ -76,16 +76,16 @@ export function DecisionPanel({ page, highlightLinkIds, onHoverLinks }: Decision
                 setHighlight([])
                 onHoverLinks([])
               }}
-              className={`flex items-start justify-between gap-3 rounded-[10px] px-3 py-2.5 text-[13px] ${
+              className={`flex items-center gap-3 rounded-[10px] px-3 py-2 text-[13px] ${
                 isResult
                   ? 'border border-ink bg-surface'
                   : 'bg-plot/60 hover:bg-plot'
               }`}
             >
-              <div className="min-w-0">
-                <p className="font-semibold text-ink">{row.check}</p>
-                <p className="mt-0.5 truncate text-ink-2">{row.phrase}</p>
-              </div>
+              <p className="w-[78px] shrink-0 font-semibold text-ink">{row.check}</p>
+              <p className="min-w-0 flex-1 truncate text-ink-2" title={row.phrase}>
+                {row.phrase}
+              </p>
               {isResult && row.result_chip ? (
                 <span
                   className={`shrink-0 rounded-[6px] px-2 py-0.5 text-[11.5px] font-semibold ${strongChipClass(page.decision)}`}
