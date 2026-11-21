@@ -9,6 +9,20 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Optional
 
+_NEGATIVE = frozenset(
+    {
+        "-",
+        "negative",
+        "rejected",
+        "failed",
+        "expired",
+        "deny",
+        "denied",
+        "fail",
+        "reject",
+    }
+)
+
 
 class LLMClient:
     """Bounded, deterministic-ish second opinions via OpenRouter."""
@@ -43,6 +57,7 @@ class LLMClient:
             "model": self.model,
             "temperature": 0,
             "seed": 0,
+            "provider": {"require_parameters": True},
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {
@@ -76,6 +91,9 @@ class LLMClient:
                     "role": "system",
                     "content": (
                         "Extract typed identity facts from the text. "
+                        "kind is one of name, dob, country, age, polarity. "
+                        "polarity is + for an approved check, - for rejected/failed/expired, "
+                        "or empty when the text is not a check result. "
                         "Each fact needs a verbatim quote from the text. "
                         "Do not decide same-person questions."
                     ),
@@ -105,6 +123,34 @@ class LLMClient:
         return {"facts": facts}
 
 
+def llm_negative(payload: Optional[Dict[str, Any]]) -> bool:
+    """True when the model marks the text as a rejected / failed / expired check."""
+    if not payload:
+        return False
+    for fact in payload.get("facts") or []:
+        pol = str(fact.get("polarity") or "").strip().lower()
+        if pol in _NEGATIVE:
+            return True
+        if str(fact.get("kind") or "").lower() == "polarity" and str(
+            fact.get("value") or ""
+        ).strip().lower() in _NEGATIVE:
+            return True
+    return False
+
+
+def llm_fact(payload: Optional[Dict[str, Any]], kind: str) -> Optional[str]:
+    if not payload:
+        return None
+    want = kind.lower()
+    for fact in payload.get("facts") or []:
+        if str(fact.get("kind") or "").lower() == want:
+            value = str(fact.get("value") or "").strip()
+            quote = fact.get("quote") or ""
+            if value and quote:
+                return value
+    return None
+
+
 def reconcile_with_reader(
     reader_value: Optional[str], llm_payload: Optional[Dict[str, Any]], kind: str
 ) -> str:
@@ -117,3 +163,4 @@ def reconcile_with_reader(
                 return "C"
             return "U"
     return "C"
+

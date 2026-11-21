@@ -33,13 +33,18 @@ Each output line cites the record IDs the proof used (customer / KYC / note / hi
 
 ## Model
 
-LLM off by default. If `OPENROUTER_API_KEY` is set, OpenRouter chat completions may second-guess free-text extracts (`temperature=0`, `seed=0`, JSON schema). Quotes must be substrings; disagreement marks the fact uncertain. Uncertain facts never enable a clearance. No other network calls.
+`OPENROUTER_API_KEY` unset → reader-only path, no network. With the key set, `LLMClient.second_opinion` runs on:
 
-Measured LLM-dependency rate: **0%** on this build (reader-only path; key unset during scoring).
+1. KYC-channel notes in `resolve._approved_checks_for_records` — vetoes rejected/failed/expired checks the reader mistook for approved, and fills missing name/DOB/country as uncertain.
+2. Accepted search snippets in `hitfacts.accepted_snippet_years` — fills a missing age as uncertain.
+
+Model: `qwen/qwen3-32b` (override with `NAMESAKE_MODEL`). `temperature=0`, `seed=0`, JSON schema, `provider.require_parameters: true`. Quotes must be substrings of the source text. The LLM never decides; uncertain facts never enable a clearance. The LLM can't cause a clearance; L4-style with/without-key diffs stay rules-only for DIFFERENT_ENTITY.
+
+Committed `output/dev.jsonl` was regenerated with the key unset, so an organiser rerun without a key matches. One live OpenRouter call with the key set returned valid schema JSON (`qwen/qwen3-32b`). Measured LLM-dependency on the committed run: **0%** (reader-only).
 
 ## Time and cost
 
-- Dev (819 hits), no LLM: ~20 seconds on this machine (under the 2-minute internal gate)
+- Dev (819 hits), no LLM: ~21 seconds on this machine (under the 2-minute internal gate)
 - Cost: $0 without a key
 
 ## Cases
@@ -62,4 +67,4 @@ Country / demonym table derived from [mledoze/countries](https://github.com/mled
 
 - 50/50 right decisions, **0 unsafe clearances**
 - Decision score **100.0**
-- Reason code 98%, customer record 100% on right decisions
+- Reason code 100%, customer record 100% on right decisions

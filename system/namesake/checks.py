@@ -116,14 +116,17 @@ def check_dob_mismatch(person: Person, hit: HitFacts) -> CheckResult:
             return CheckResult("DOB_MISMATCH", "UNKNOWN")
         return CheckResult("DOB_MISMATCH", "FALSE")
     if all_hit_dobs_contradicted(person.dob, hit.dobs):
+        # Uncertain hit DOBs (LLM gap-fill, slash dates) cannot clear.
+        if any(not d.certain for d in hit.dobs):
+            return CheckResult("DOB_MISMATCH", "UNKNOWN")
         ev = [person.verified_source] if person.verified_source else person.evidence_ids[:1]
         return CheckResult("DOB_MISMATCH", "TRUE", "DOB_MISMATCH", list(ev) + hit.evidence_ids[:1])
     return CheckResult("DOB_MISMATCH", "FALSE")
 
 
 def check_location(person: Person, hit: HitFacts) -> CheckResult:
-    """Closed customer set with no overlap → TRUE. Open set → UNKNOWN (I9)."""
-    if person.countries_open:
+    """Closed sets with no overlap → TRUE. Either side open → UNKNOWN (I9)."""
+    if person.countries_open or hit.countries_open:
         return CheckResult("LOCATION_MISMATCH", "UNKNOWN")
     if not person.countries or not hit.countries:
         return CheckResult("LOCATION_MISMATCH", "FALSE")

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from namesake.countries import canonical_country
+from namesake.countries import canonical_country, is_unmappable_place
 from namesake.dates import DateInterval, parse_date
 from namesake.facts import CERTAIN, Fact, Person
 from namesake.names import build_variant_map, names_agree
@@ -262,7 +262,53 @@ def _approved_checks_for_records(
             text = note.get("text") or ""
             if channel == "kyc":
                 ext = read_kyc_note(text, note.get("created_at") or "")
+                if ext.approved is False:
+                    continue
+                llm = getattr(store, "llm", None)
+                llm_payload = llm.second_opinion(text) if llm is not None else None
+                from namesake.llm import llm_fact, llm_negative
+
+                # LLM veto: a rejected/failed/expired check is never verified identity.
+                if llm_negative(llm_payload):
+                    continue
+                filled_uncertain = False
+                if not ext.verified_name:
+                    filled = llm_fact(llm_payload, "name")
+                    if filled:
+                        ext.verified_name = filled
+                        filled_uncertain = True
+                if ext.dob is None:
+                    filled = llm_fact(llm_payload, "dob")
+                    if filled:
+                        iv = parse_date(filled)
+                        if iv is not None:
+                            ext.dob = DateInterval(
+                                iv.y_lo,
+                                iv.m_lo,
+                                iv.d_lo,
+                                iv.y_hi,
+                                iv.m_hi,
+                                iv.d_hi,
+                                certain=False,
+                                source=iv.source,
+                            )
+                            filled_uncertain = True
+                if not ext.document_country:
+                    filled = llm_fact(llm_payload, "country")
+                    if filled:
+                        c = canonical_country(filled)
+                        if c:
+                            ext.document_country = c
+                            filled_uncertain = True
                 if ext.approved is True and (ext.dob or ext.verified_name):
+                    certain = (
+                        False
+                        if filled_uncertain
+                        else (
+                            ext.certain
+                            or (ext.dob is not None and ext.verified_name is not None)
+                        )
+                    )
                     items.append(
                         (
                             note.get("created_at") or "",
@@ -274,9 +320,8 @@ def _approved_checks_for_records(
                                 "document_country": ext.document_country,
                                 "kind": "note",
                                 "at": note.get("created_at") or "",
-                                # usable for confirm/clear when DOB+name parse even if not fully certain
-                                "certain": ext.certain
-                                or (ext.dob is not None and ext.verified_name is not None),
+                                # LLM-filled gaps stay uncertain and cannot clear.
+                                "certain": certain,
                             },
                         )
                     )
@@ -379,10 +424,13 @@ def build_person(store: DataStore, record_ids: List[str], screened: Dict[str, An
             if rec.get(key):
                 person.names.append(Fact("name", rec[key], cid, key, CERTAIN))
         for key in ("residence_country", "nationality"):
-            c = canonical_country(rec.get(key))
+            raw = rec.get(key)
+            c = canonical_country(raw)
             if c:
                 person.countries.add(c)
                 person.country_facts.append(Fact("country", c, cid, key, CERTAIN))
+            elif is_unmappable_place(raw):
+                person.countries_open = True
         iv = parse_date(rec.get("dob"), source=cid)
         if iv:
             dobs.append(iv)
@@ -417,9 +465,12 @@ def build_person(store: DataStore, record_ids: List[str], screened: Dict[str, An
             person.verified_dob = check["verified_dob_interval"]
         else:
             person.verified_dob = parse_date(check.get("verified_dob"), source=source_id)
-        person.verified_doc_country = canonical_country(check.get("document_country"))
+        doc_raw = check.get("document_country")
+        person.verified_doc_country = canonical_country(doc_raw)
         if person.verified_doc_country:
             person.countries.add(person.verified_doc_country)
+        elif is_unmappable_place(doc_raw):
+            person.countries_open = True
         if source_id not in person.evidence_ids:
             person.evidence_ids.append(source_id)
         verified_picked = True

@@ -14,6 +14,10 @@ from namesake.store import DataStore
 
 def run_pipeline(data_folder: str, output_file: str) -> None:
     store = DataStore(data_folder)
+    from namesake.llm import LLMClient
+
+    # One client for the run. No key → second_opinion returns None everywhere.
+    store.llm = LLMClient()  # type: ignore[attr-defined]
     trace_dir = os.environ.get("NAMESAKE_TRACE_DIR")
     rows: List[Dict[str, Any]] = []
     for hit_id in store.hit_ids_sorted():

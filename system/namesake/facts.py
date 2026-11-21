@@ -61,6 +61,7 @@ class HitFacts:
     dobs: List[DateInterval] = field(default_factory=list)
     dob_unknown: bool = False  # unparsed birth cue blocks snippets (I1)
     countries: Set[str] = field(default_factory=set)
+    countries_open: bool = False  # I9: an unmapped place-like value on the hit
     earliest_report: Optional[DateInterval] = None
     deceased_before_screen: Optional[bool] = None  # True/False/None(UNKNOWN)
     deceased_source: Optional[str] = None

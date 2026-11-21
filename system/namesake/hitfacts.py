@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-from namesake.countries import countries_from_values
+from namesake.countries import parse_country_values
 from namesake.dates import DateInterval, age_at_date_years, parse_date, year_interval
 from namesake.facts import HitFacts
 from namesake.names import best_name_for_hit
@@ -31,6 +31,12 @@ def listing_phrase(hit: Dict[str, Any]) -> str:
 
 
 def hit_countries(hit: Dict[str, Any]) -> Set[str]:
+    countries, _opened = hit_countries_parsed(hit)
+    return countries
+
+
+def hit_countries_parsed(hit: Dict[str, Any]) -> Tuple[Set[str], bool]:
+    """Return (mapped countries, open). Open when a place-like value does not map."""
     values: List[Any] = []
     values.extend(hit.get("countries") or [])
     values.extend(hit.get("nationality") or [])
@@ -42,7 +48,7 @@ def hit_countries(hit: Dict[str, Any]) -> Set[str]:
             values.append(addr)
         elif isinstance(addr, dict):
             values.append(addr.get("country") or addr.get("value") or str(addr))
-    return countries_from_values(values)
+    return parse_country_values(values)
 
 
 def earliest_dated_report(profile_notes: Optional[str]) -> Optional[DateInterval]:
@@ -171,6 +177,19 @@ def accepted_snippet_years(
         if not _snippet_names_country(snippet, countries):
             continue
         age = _snippet_age(snippet)
+        llm_filled = False
+        llm = getattr(store, "llm", None)
+        if llm is not None:
+            from namesake.llm import llm_fact
+
+            payload = llm.second_opinion(snippet)
+            if age is None:
+                filled = llm_fact(payload, "age")
+                if filled and str(filled).isdigit():
+                    number = int(filled)
+                    if 16 <= number <= 110:
+                        age = number
+                        llm_filled = True
         date_m = re.search(
             r"(January|February|March|April|May|June|July|August|September|October|November|December)"
             r"\s+(\d{4})|"
@@ -182,7 +201,13 @@ def accepted_snippet_years(
         if age is not None and date_m:
             year = int(next(g for g in date_m.groups() if g and g.isdigit() and len(g) == 4))
             for y in age_at_date_years(age, year):
-                out.append(year_interval(y, source=row.get("result_id") or ""))
+                out.append(
+                    year_interval(
+                        y,
+                        certain=not llm_filled,
+                        source=row.get("result_id") or "",
+                    )
+                )
     return out
 
 
@@ -198,7 +223,7 @@ def gather_hit_facts(store: DataStore, hit_id: str) -> HitFacts:
         if alias and str(alias) not in names:
             names.append(str(alias))
 
-    countries = hit_countries(hit)
+    countries, countries_open = hit_countries_parsed(hit)
     dobs: List[DateInterval] = []
     for raw in hit.get("dobs") or []:
         iv = parse_date(str(raw), source=hit_id)
@@ -262,6 +287,7 @@ def gather_hit_facts(store: DataStore, hit_id: str) -> HitFacts:
         dobs=dobs,
         dob_unknown=dob_unknown,
         countries=countries,
+        countries_open=countries_open,
         earliest_report=earliest,
         deceased_before_screen=deceased,
         deceased_source=deceased_source,
